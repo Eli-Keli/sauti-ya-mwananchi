@@ -6,7 +6,7 @@ Sauti ya Mwananchi is a multi-agent civic participation chatbot for Kenya's elec
 Kenyan youth registered in record numbers, but many still lack clear, trusted, and neutral information about their rights, voting rules, and what to do on election day. This project helps voters understand the process, find where to vote, and avoid misinformation without pushing any political agenda.
 
 ## Agent architecture
-The system uses a router agent to send each message to exactly one specialized agent. All agents share a short session memory (in-memory only).
+The system uses Google ADK with a coordinator agent that delegates each message to exactly one specialized agent. Sessions are handled by ADK's in-memory session service and are not persisted.
 
 Agents:
 - Msaidizi: front-door and orchestrator, multilingual, handles greetings and unclear queries
@@ -16,14 +16,15 @@ Agents:
 - Mwenza: election day companion with short, step-by-step instructions
 
 Tools and services:
-- Gemini (text + vision) for routing and responses
+- Google ADK (LlmAgent + InMemoryRunner) for routing and responses
+- Gemini (text + vision) as the model backend
 - Vertex AI Search for legal document retrieval
 - FastAPI for the backend API
 
 How they communicate:
-- main.py receives the request and uses router.py to pick the agent
-- session.py supplies short in-memory history to each agent
-- agents return a response which is stored back to the session
+- main.py receives the request and calls the ADK runner in adk_app.py
+- the coordinator agent delegates to a sub-agent using transfer_to_agent
+- ADK stores events in an in-memory session scoped to session_id
 
 ## Run locally
 
