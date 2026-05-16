@@ -1,96 +1,84 @@
 # Sauti ya Mwananchi
 
-Sauti ya Mwananchi is a multi-agent civic participation chatbot for Kenya's elections. It routes user queries to specialized agents for civic education, polling station guidance, fact checking, and election day support while enforcing strict political neutrality.
+Sauti ya Mwananchi is a multi-agent civic participation chatbot for Kenya's elections. It bridges the gap between "I am registered" and "I know what I am voting for" by giving neutral, verified, and practical guidance to voters in plain language.
 
-## Features
-- Multi-agent routing for targeted help
-- FastAPI backend with a single /chat endpoint
-- RAG search for legal and election documents (Mwalimu agent)
-- In-memory session history (no persistence)
-- Neutrality guardrails for political content
+## Problem we are solving
+Kenyan youth registered in record numbers, but many still lack clear, trusted, and neutral information about their rights, voting rules, and what to do on election day. This project helps voters understand the process, find where to vote, and avoid misinformation without pushing any political agenda.
 
-## Project structure
+## Agent architecture
+The system uses a router agent to send each message to exactly one specialized agent. All agents share a short session memory (in-memory only).
 
-```
-sauti-ya-mwananchi/
-├── main.py
-├── router.py
-├── guardrails.py
-├── session.py
-├── rag.py
-├── config.py
-├── agents/
-│   ├── __init__.py
-│   ├── msaidizi.py
-│   ├── mwalimu.py
-│   ├── kiongozi.py
-│   ├── ukweli.py
-│   └── mwenza.py
-├── Dockerfile
-├── requirements.txt
-└── .env.example
-```
+Agents:
+- Msaidizi: front-door and orchestrator, multilingual, handles greetings and unclear queries
+- Mwalimu: civic educator, answers only from official documents using RAG
+- Kiongozi: polling station and registration guidance (voters.iebc.or.ke)
+- Ukweli: fact-checker for election claims and images, returns one verdict
+- Mwenza: election day companion with short, step-by-step instructions
 
-## Requirements
+Tools and services:
+- Gemini (text + vision) for routing and responses
+- Vertex AI Search for legal document retrieval
+- FastAPI for the backend API
+
+How they communicate:
+- main.py receives the request and uses router.py to pick the agent
+- session.py supplies short in-memory history to each agent
+- agents return a response which is stored back to the session
+
+## Run locally
+
+Requirements:
 - Python 3.11+
-- A Google Gemini API key
-- Vertex AI Search datastore for legal documents (optional but recommended)
+- Gemini API key
+- Vertex AI Search datastore (optional but recommended)
 
-## Environment variables
-Copy `.env.example` to `.env` and fill in values:
-
-```
-GOOGLE_CLOUD_PROJECT=gdg-agentathon-2026
-GCS_BUCKET=sauti-ya-mwananchi-legal-docs
-VERTEX_SEARCH_DATASTORE_ID=your-datastore-id-here
-GEMINI_API_KEY=your-gemini-api-key-here
-GEMINI_MODEL=gemini-1.5-pro
-```
-
-## Install
-
+Setup:
 ```
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
-## Run locally
-
+Run:
 ```
 uvicorn main:app --host 0.0.0.0 --port 8080
 ```
 
 Health check:
-
 ```
 curl http://localhost:8080/health
 ```
 
-## Chat API
-
-`POST /chat`
-
-Request body:
-
-```json
-{
-	"session_id": "abc123",
-	"message": "Nipateje kituo changu cha kupigia kura?",
-	"image_base64": null
-}
+Chat API:
+```
+curl -X POST http://localhost:8080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"test-1","message":"Nipateje kituo changu cha kupigia kura?","image_base64":null}'
 ```
 
-Response:
+## Deployed version
+Live UI (Cloud Run):
+https://sauti-ya-mwananchi-804854368817.europe-west2.run.app/
 
-```json
-{
-	"agent": "kiongozi",
-	"reply": "..."
-}
-```
+How to interact:
+1. Open the link above.
+2. Ask a question in English, Kiswahili, or Sheng.
+3. The system routes you to the right agent and responds in the same language.
 
-## Notes
-- Session history is stored in memory only and resets when the server restarts.
-- The system enforces political neutrality and will not comment on candidates or parties.
-- Mwalimu uses RAG; if the datastore is not configured, it will still respond but may return "not in documents".
+## Demo
+Live demo URL:
+https://sauti-ya-mwananchi-804854368817.europe-west2.run.app/
+
+## Team
+- Emmanuel - Team Member
+- Isaac - Team Member
+- Glory - Team Member
+- Isabella - Team Member
+
+## Data handling and political neutrality policy (Challenge 06)
+- No voter ID data is collected, stored, or repeated. If asked, the system refuses and asks only for ward or constituency.
+- Session history is in memory only and resets when the server restarts.
+- Mwalimu only answers from official documents and cites each fact. If the answer is not in the documents, it says so.
+- Ukweli always returns exactly one grounded verdict: VERIFIED, UNVERIFIED, or FALSE, with a source.
+- The system is politically neutral and does not comment on candidates, parties, or endorsements.
